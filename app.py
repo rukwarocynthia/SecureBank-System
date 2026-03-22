@@ -28,9 +28,15 @@ FRAUD_LIMIT = 500000
 app.secret_key = "bank_secret_key"
 serializer = URLSafeTimedSerializer(app.secret_key)
 
+if os.environ.get('RENDER'):
+    DATABASE_PATH = '/var/lib/data/bank.db'
+else:
+    DATABASE_PATH = 'bank.db'
+
 # ------------------- DATABASE CONNECTION ------------------- #
 def get_db_connection():
-    conn = sqlite3.connect("bank.db")
+   
+    conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -88,8 +94,6 @@ def register():
             conn.close()
             return render_template("register.html")
 
-        # Insert user with default 'active' status and '0' for admin
-        # This ensures the login check for "frozen" status works correctly
         cursor.execute(
             "INSERT INTO Users (username, email, password, status, is_admin) VALUES (?, ?, ?, ?, ?)",
             (username, email, hashed_password, 'active', 0)
@@ -321,16 +325,13 @@ def dashboard():
     # Get User Accounts
     accounts = cursor.execute("SELECT * FROM Accounts WHERE user_id=?", (user_id,)).fetchall()
 
-    # 3. Get Sum of Pending Funds (Using user_id instead of sender_id)
-    # This assumes your Transactions table uses 'user_id'
     pending_data = cursor.execute(
         "SELECT SUM(amount) as total_pending FROM Transactions WHERE user_id = ? AND status = 'pending'", 
         (user_id,)
     ).fetchone()
     pending_amount = pending_data['total_pending'] if pending_data['total_pending'] else 0
 
-    # 4. Calculate Projected Interest (For display only)
-    # Using 'Fixed Deposit' to match your <option> and HTML logic
+    # 4. Calculate Projected Interest
     projected_interest = 0
     for acc in accounts:
         if acc['account_type'] == 'Fixed Deposit' and acc['balance'] > 0:
@@ -360,16 +361,13 @@ def create_account():
     user_id = session["user_id"]
     
     # Define default rates
-    interest_rate = 0.02  # Default for Savings
+    interest_rate = 0.02  
     maturity_date = None
     
     if account_type == "Fixed Deposit":
-        interest_rate = 0.10  # 10% as shown in your HTML
-        # NOTE: We keep maturity_date as None here. 
-        # It should be set in the 'Deposit' or 'Transfer' route 
-        # the moment the first KES is added.
+        interest_rate = 0.10 
     elif account_type == "Current":
-        interest_rate = 0.00  # Standard current accounts usually earn no interest
+        interest_rate = 0.00  
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -399,7 +397,7 @@ def deposit(account_id):
         return redirect(url_for("login"))
 
     conn = get_db_connection()
-    # Using row_factory ensures we can access tx['amount'] etc.
+   
     conn.row_factory = sqlite3.Row 
     cursor = conn.cursor()
 
@@ -415,7 +413,6 @@ def deposit(account_id):
         try:
             amount = float(request.form["amount"])
             
-            # --- THE FIX: Check against APPROVAL_LIMIT ---
             if amount >= APPROVAL_LIMIT:
                 # 1. Create PENDING transaction (Balance is NOT updated)
                 cursor.execute("""
@@ -458,7 +455,7 @@ def deposit_fixed(account_id):
     cursor = conn.cursor()
     
     try:
-        # Fetch account details
+
         cursor.execute("SELECT * FROM Accounts WHERE id=? AND account_type = 'Fixed Deposit'", (account_id,))
         account = cursor.fetchone()
 
@@ -470,14 +467,13 @@ def deposit_fixed(account_id):
             amount_str = request.form.get("amount")
             user_date = request.form.get("maturity_date")
 
-            # Validation: Check if amount is valid
             if not amount_str or float(amount_str) <= 0:
                 flash("Please enter a valid deposit amount.", "warning")
                 return redirect(url_for("deposit_fixed", account_id=account_id))
 
             amount = float(amount_str)
 
-            # Update Account: Balance + Date + Status
+        
             cursor.execute("""
                 UPDATE Accounts 
                 SET balance = balance + ?, 
@@ -486,7 +482,6 @@ def deposit_fixed(account_id):
                 WHERE id = ?
             """, (amount, user_date, account_id))
 
-            # Log Transaction: Now including the description since we fixed the DB!
             cursor.execute("""
                 INSERT INTO Transactions (user_id, account_id, amount, transaction_type, status, description) 
                 VALUES (?, ?, ?, 'Fixed Deposit', 'approved', ?)
@@ -498,11 +493,11 @@ def deposit_fixed(account_id):
 
     except Exception as e:
         print(f"Database Error: {e}")
-        conn.rollback() # Undo any partial changes if it crashes
+        conn.rollback() 
         flash("An error occurred while processing your deposit.")
         return redirect(url_for("dashboard"))
     finally:
-        conn.close() # Always close to release the lock
+        conn.close()
 
     today = datetime.now().strftime('%Y-%m-%d')
     return render_template("deposit_fixed.html", account=account, min_date=today)
@@ -515,31 +510,25 @@ def withdraw(account_id):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
-    # Convert session data to clear variables
     is_admin = session.get("is_admin") == 1
     user_id = session.get("user_id")
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Fetch account: logic ensures only the owner or an admin can see it
-    # We use explicit checks to prevent SQL injection or logic bypasses
     cursor.execute("SELECT * FROM Accounts WHERE id=?", (account_id,))
     account = cursor.fetchone()
 
-    # Security Check: Does the account exist and does it belong to the user (if not admin)?
     if not account or (not is_admin and account["user_id"] != user_id):
         conn.close()
         flash("Unauthorized access or account not found.")
         return redirect(url_for("dashboard"))
-
-    # 1. Status check
+    
     if account["status"] == "frozen":
         conn.close()
         flash("This account is frozen. Transactions are disabled.")
         return redirect(url_for("dashboard"))
 
-    # 2. Fixed Deposit Maturity Logic
     if account["account_type"] == "Fixed Deposit" and not is_admin:
         maturity_str = account["maturity_date"]
         if maturity_str:
@@ -551,7 +540,6 @@ def withdraw(account_id):
                     flash(f"Access Denied: Fixed Deposit matures on {maturity_str}.")
                     return redirect(url_for("dashboard"))
             except ValueError:
-                # Fallback if the date format in DB is corrupted
                 pass
 
     if request.method == "POST":
@@ -569,8 +557,6 @@ def withdraw(account_id):
             flash("Insufficient funds.")
             return redirect(url_for("withdraw", account_id=account_id))
 
-        # 3. Processing the withdrawal
-        # Admins or small amounts (within APPROVAL_LIMIT) get instant approval
         if is_admin or amount <= APPROVAL_LIMIT:
             cursor.execute("UPDATE Accounts SET balance = balance - ? WHERE id=?", (amount, account_id))
             status = "approved"
@@ -579,7 +565,6 @@ def withdraw(account_id):
             status = "pending"
             flash("Amount exceeds limit. Withdrawal pending admin approval.", "warning")
 
-        # 4. Record Transaction
         cursor.execute(
             "INSERT INTO Transactions (account_id, amount, transaction_type, status) VALUES (?, ?, ?, ?)",
             (account_id, amount, "Withdraw", status)
@@ -589,7 +574,6 @@ def withdraw(account_id):
         conn.close()
         return redirect(url_for("dashboard"))
 
-    # If GET request, show the form
     conn.close()
     return render_template("withdraw.html", account=account)
 
@@ -738,10 +722,8 @@ def admin_dashboard():
     chart_data = []
     
     for i in range(6, -1, -1):
-        # Calculate date for the day (today, yesterday, etc.)
         target_date = date.today() - timedelta(days=i)
         
-        # Format label for JS (e.g., 'Mon') and date for SQL (e.g., '2026-03-21')
         chart_labels.append(target_date.strftime('%a'))
         db_date = target_date.strftime('%Y-%m-%d')
         
@@ -805,7 +787,6 @@ def approve_transaction(tx_id):
     if tx and tx["status"] == "pending":
         account_id = tx["account_id"]
         amount = tx["amount"]
-        # Standardizing 'type' vs 'transaction_type'
         tx_type = tx["type"] if "type" in tx.keys() else tx["transaction_type"]
 
         try:
@@ -813,11 +794,9 @@ def approve_transaction(tx_id):
                 cursor.execute("UPDATE Accounts SET balance = balance + ? WHERE id=?", (amount, account_id))
             
             elif tx_type == "Withdraw":
-                # Optional: Check if balance is still sufficient before approving
                 cursor.execute("UPDATE Accounts SET balance = balance - ? WHERE id=?", (amount, account_id))
             
             elif tx_type == "Transfer":
-                # Ensure your Transactions table has a 'receiver_id' or 'receiver_account' column
                 receiver_id = tx["receiver_id"] if "receiver_id" in tx.keys() else tx.get("receiver_account")
                 if receiver_id:
                     cursor.execute("UPDATE Accounts SET balance = balance - ? WHERE id=?", (amount, account_id))
@@ -848,7 +827,6 @@ def reject_transaction(tx_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # We simply mark it as rejected. No money moves.
     cursor.execute("UPDATE Transactions SET status='rejected' WHERE id=?", (tx_id,))
     conn.commit()
     conn.close()
@@ -894,16 +872,10 @@ def delete_account(account_id):
     cursor = conn.cursor()
 
     try:
-        # 1. ANONYMIZE TRANSFERS: Keep the record for the OTHER person
-        # Set sender to NULL if this account was the sender
         cursor.execute("UPDATE Transactions SET account_id = NULL WHERE account_id = ? AND transaction_type = 'Transfer'", (account_id,))
-        # Set receiver to NULL if this account was the receiver
         cursor.execute("UPDATE Transactions SET receiver_account = NULL WHERE receiver_account = ?", (account_id,))
 
-        # 2. DELETE PRIVATE DATA: Wipe Deposits/Withdrawals/Interest
         cursor.execute("DELETE FROM Transactions WHERE account_id = ? AND transaction_type != 'Transfer'", (account_id,))
-
-        # 3. DELETE THE ACCOUNT
         cursor.execute("DELETE FROM Accounts WHERE id = ?", (account_id,))
 
         conn.commit()
@@ -930,7 +902,6 @@ def delete_user(user_id):
         accounts = [row[0] for row in cursor.fetchall()]
 
         for acc_id in accounts:
-            # 2. Anonymize Transfers for every account
             cursor.execute("UPDATE Transactions SET account_id = NULL WHERE account_id = ? AND transaction_type = 'Transfer'", (acc_id,))
             cursor.execute("UPDATE Transactions SET receiver_account = NULL WHERE receiver_account = ?", (acc_id,))
             
@@ -940,7 +911,7 @@ def delete_user(user_id):
         # 4. Delete all Accounts
         cursor.execute("DELETE FROM Accounts WHERE user_id = ?", (user_id,))
 
-        # 5. Finally, delete the User
+        # 5. Delete the User
         cursor.execute("DELETE FROM Users WHERE id = ?", (user_id,))
 
         conn.commit()
@@ -954,4 +925,7 @@ def delete_user(user_id):
 
 # ------------------- RUN APP ------------------- #
 if __name__ == "__main__":
-    app.run(debug=True)
+    # 1. Get the PORT from Render (defaults to 5000 if running locally)
+    port = int(os.environ.get("PORT", 5000))
+
+    app.run(host='0.0.0.0', port=port, debug=False)
