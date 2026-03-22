@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | SecureBank</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --dark-navy: #0f172a;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            /* Using a glass effect color for cards */
+            --glass-white: rgba(255, 255, 255, 0.92);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            color: var(--dark-navy);
+            min-height: 100vh;
+            /* Background image with a dark overlay to ensure blending */
+            background: linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)), 
+                        url('https://images.unsplash.com/photo-1601597111158-2fcee29a4a0a?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95); /* Slightly transparent navy */
+            backdrop-filter: blur(10px);
+            padding: 1rem 8%;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .logo { color: white; font-size: 1.4rem; font-weight: 800; display: flex; align-items: center; gap: 10px; }
+        .nav-links { list-style: none; display: flex; gap: 25px; align-items: center; }
+        .nav-links a { color: #94a3b8; text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: white; }
+        .logout-btn { background: rgba(248, 113, 113, 0.15); color: #f87171 !important; padding: 8px 18px; border-radius: 8px; }
+
+        .container { max-width: 1200px; margin: 50px auto; padding: 0 20px; }
+
+        /* Welcome Header */
+        header { margin-bottom: 40px; }
+        header h1 { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.025em; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        header p { color: #cbd5e1; font-size: 1.1rem; }
+
+        /* Modern Account Card with Glassmorphism */
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .account-card {
+            background: var(--glass-white); 
+            backdrop-filter: blur(5px);
+            border-radius: 24px; padding: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            display: flex; flex-direction: column;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .account-card:hover { transform: translateY(-6px); box-shadow: 0 20px 30px rgba(0,0,0,0.3); }
+        .fixed-card { border-top: 6px solid var(--warning); }
+
+        /* Card Content */
+        .type-label { 
+            display: flex; justify-content: space-between; align-items: center;
+            color: #64748b; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.05em; margin-bottom: 12px;
+        }
+        .balance-amt { font-size: 1.85rem; font-weight: 800; margin-bottom: 8px; color: #0f172a; }
+        .interest-tag { background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; }
+        .gain-text { color: var(--success); font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+
+        /* Buttons Container */
+        .action-row { display: flex; gap: 10px; margin-top: auto; padding-top: 25px; }
+        .btn-action {
+            flex: 1; padding: 12px; border-radius: 12px; text-decoration: none;
+            font-size: 0.85rem; font-weight: 700; text-align: center;
+            display: flex; align-items: center; justify-content: center; gap: 6px;
+            transition: 0.2s;
+        }
+        .btn-dep { background: #ecfdf5; color: var(--success); }
+        .btn-with { background: #fef2f2; color: var(--danger); }
+        .btn-send { background: #eff6ff; color: var(--primary); }
+
+        /* Fixed Deposit Buttons */
+        .btn-fd-main {
+            width: 100%; padding: 14px; border-radius: 14px; border: none;
+            font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: 0.3s;
+        }
+        .status-locked { background: #f1f5f9; color: #64748b; border: 1px dashed #cbd5e1; }
+        .status-ready { background: var(--success); color: white; }
+        .status-setup { background: var(--primary); color: white; text-decoration: none; display: block; text-align: center; }
+
+        /* New Account Form */
+        .new-account-box {
+            background: var(--glass-white); 
+            backdrop-filter: blur(5px);
+            border-radius: 24px; padding: 30px; margin-top: 50px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.3);
+        }
+        .new-account-box h3 { margin-bottom: 20px; font-size: 1.25rem; font-weight: 700; }
+        .form-flex { display: flex; gap: 15px; }
+        select { flex: 1; padding: 14px; border-radius: 12px; border: 1px solid #cbd5e1; }
+        .btn-create { background: var(--dark-navy); color: white; border: none; padding: 0 30px; border-radius: 12px; font-weight: 700; cursor: pointer; }
+
+        /* Toast */
+        .toast {
+            position: fixed; bottom: 30px; right: 30px; background: var(--dark-navy);
+            color: white; padding: 16px 28px; border-radius: 16px; font-weight: 600;
+            box-shadow: 0 20px 25px rgba(0,0,0,0.3); z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo"><i class="fa-solid fa-building-columns"></i> SecureBank</div>
+    <ul class="nav-links">
+        <li><a href="/dashboard" class="active">Dashboard</a></li>
+        <li><a href="/transactions">Transactions</a></li>
+        {% if session.get("is_admin") %}<li><a href="/admin">Admin Panel</a></li>{% endif %}
+        <li><a href="/logout" class="logout-btn">Logout</a></li>
+    </ul>
+</nav>
+
+<div class="container">
+    <header>
+        <h1>Hello, {{ username }} 👋</h1>
+        <p>Manage your accounts and track your investments.</p>
+    </header>
+
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}<div class="toast" id="toast">{{ messages[0] }}</div>{% endif %}
+    {% endwith %}
+
+    <div class="card-container">
+        {% for account in accounts %}
+        <div class="account-card {% if account.account_type == 'Fixed Deposit' %}fixed-card{% endif %}">
+            <div class="type-label">
+                <span><i class="fa-solid {% if account.account_type == 'Fixed Deposit' %}fa-vault{% else %}fa-wallet{% endif %}"></i> {{ account.account_type }}</span>
+                {% if account.account_type == 'Fixed Deposit' %}
+                <span class="interest-tag">10% APY</span>
+                {% endif %}
+            </div>
+
+            <div class="balance-amt">KES {{ "{:,.2f}".format(account.balance) }}</div>
+
+            {% if account.account_type == 'Fixed Deposit' and account.balance > 0 %}
+            <div class="gain-text">
+                <i class="fa-solid fa-arrow-trend-up"></i> Expected Gain: KES {{ "{:,.2f}".format(account.balance * 0.10) }}
+            </div>
+            {% endif %}
+
+            <div class="action-row">
+                {% if account.account_type == 'Fixed Deposit' %}
+                    {% if account.balance > 0 %}
+                        {% if account.maturity_date %}
+                            {% if today >= account.maturity_date %}
+                                <form action="/collect_interest/{{ account.id }}" method="POST" style="width: 100%;">
+                                    <button type="submit" class="btn-fd-main status-ready">Collect Interest</button>
+                                </form>
+                            {% else %}
+                                <div class="btn-fd-main status-locked"><i class="fa-solid fa-lock"></i> Locked until {{ account.maturity_date }}</div>
+                            {% endif %}
+                        {% else %}
+                            <div class="btn-fd-main status-locked"><i class="fa-solid fa-spinner fa-spin"></i> Verifying...</div>
+                        {% endif %}
+                    {% else %}
+                        <a href="/deposit_fixed/{{ account.id }}" class="btn-fd-main status-setup">Setup & Deposit</a>
+                    {% endif %}
+                {% else %}
+                    <a href="/deposit/{{ account.id }}" class="btn-action btn-dep"><i class="fa-solid fa-plus-circle"></i> Deposit</a>
+                    <a href="/withdraw/{{ account.id }}" class="btn-action btn-with"><i class="fa-solid fa-minus-circle"></i> Withdraw</a>
+                    <a href="/transfer/{{ account.id }}" class="btn-action btn-send"><i class="fa-solid fa-paper-plane"></i> Send</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="new-account-box">
+        <h3><i class="fa-solid fa-circle-plus text-primary"></i> Open New Account</h3>
+        <form method="POST" action="/create_account" class="form-flex">
+            <select name="account_type" required>
+                <option value="" disabled selected>Choose account type...</option>
+                <option value="Savings">Savings Account</option>
+                <option value="Current">Current Account</option>
+                <option value="Fixed Deposit">Fixed Deposit (10% Interest)</option>
+            </select>
+            <button type="submit" class="btn-create">Create Account</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    setTimeout(() => {
+        const t = document.getElementById("toast");
+        if(t) t.style.opacity = '0';
+    }, 3000);
+</script>
+</body>
+</html>

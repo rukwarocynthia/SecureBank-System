@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction History | SecureBank</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --dark-navy: #0f172a;
+            --success: #10b981;
+            --danger: #ef4444;
+            --glass-white: rgba(255, 255, 255, 0.92);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            color: var(--dark-navy);
+            min-height: 100vh;
+            /* Matches Dashboard Background */
+            background: linear-gradient(rgba(15, 23, 42, 0.75), rgba(15, 23, 42, 0.75)), 
+                        url('https://images.unsplash.com/photo-1601597111158-2fcee29a4a0a?q=80&w=2070&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        /* Navbar (Matches Dashboard) */
+        .navbar {
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 8%;
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+            position: sticky; top: 0; z-index: 1000;
+        }
+        .logo { color: white; font-size: 1.4rem; font-weight: 800; display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .nav-links { list-style: none; display: flex; gap: 25px; align-items: center; }
+        .nav-links a { color: #94a3b8; text-decoration: none; font-weight: 500; font-size: 0.95rem; transition: 0.2s; }
+        .nav-links a:hover, .nav-links a.active { color: white; }
+        .logout-btn { background: rgba(248, 113, 113, 0.15); color: #f87171 !important; padding: 8px 18px; border-radius: 8px; }
+
+        .container { max-width: 900px; margin: 50px auto; padding: 0 20px; }
+
+        /* Header Style */
+        header { margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end; }
+        header h1 { font-size: 2.4rem; font-weight: 800; color: white; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+        header p { color: #cbd5e1; font-size: 1.1rem; }
+        .back-link { color: var(--primary); text-decoration: none; font-weight: 700; background: rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 10px; backdrop-filter: blur(5px); transition: 0.2s; }
+        .back-link:hover { background: rgba(255,255,255,0.2); color: white; }
+
+        /* Transaction Box with Glassmorphism */
+        .transaction-box {
+            background: var(--glass-white); 
+            backdrop-filter: blur(12px);
+            border-radius: 24px; overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4); 
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .transaction-item {
+            padding: 22px 30px; border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+            display: flex; justify-content: space-between; align-items: center;
+            transition: background 0.2s ease;
+        }
+        .transaction-item:last-child { border-bottom: none; }
+        .transaction-item:hover { background: rgba(241, 245, 249, 0.8); }
+
+        /* Left side styles */
+        .t-left { display: flex; align-items: center; gap: 20px; }
+        .t-icon {
+            width: 48px; height: 48px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .icon-deposit { background: #d1fae5; color: var(--success); }
+        .icon-withdraw { background: #fee2e2; color: var(--danger); }
+        .icon-transfer { background: #dbeafe; color: var(--primary); }
+
+        .t-info h4 { font-size: 1.05rem; font-weight: 700; color: var(--dark-navy); margin-bottom: 2px; }
+        .t-desc { font-size: 0.85rem; color: #64748b; font-weight: 500; }
+
+        /* Right side styles */
+        .t-right { text-align: right; }
+        .t-amount { font-size: 1.15rem; font-weight: 800; margin-bottom: 4px; }
+        .amt-pos { color: var(--success); }
+        .amt-neg { color: var(--dark-navy); }
+        .t-date { font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+
+        /* Empty State */
+        .empty-state { padding: 80px 40px; text-align: center; color: #64748b; }
+        .empty-state i { font-size: 3.5rem; margin-bottom: 20px; opacity: 0.3; }
+        .empty-state p { font-size: 1.1rem; font-weight: 500; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <a href="/dashboard" class="logo"><i class="fa-solid fa-building-columns"></i> SecureBank</a>
+    <ul class="nav-links">
+        <li><a href="/dashboard">Dashboard</a></li>
+        <li><a href="/transactions" class="active">Transactions</a></li>
+        <li><a href="/logout" class="logout-btn">Logout</a></li>
+    </ul>
+</nav>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>Recent Activity</h1>
+            <p>Your latest financial history at a glance.</p>
+        </div>
+        <a href="/dashboard" class="back-link"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+    </header>
+
+    <div class="transaction-box">
+        {% if transactions %}
+            {% for t in transactions %}
+            <div class="transaction-item">
+                <div class="t-left">
+                    <div class="t-icon 
+                        {% if t['transaction_type'] in ['Deposit', 'Fixed Deposit'] %}icon-deposit
+                        {% elif t['transaction_type'] == 'Withdraw' %}icon-withdraw
+                        {% else %}icon-transfer{% endif %}">
+                        
+                        <i class="fa-solid 
+                            {% if t['transaction_type'] in ['Deposit', 'Fixed Deposit'] %}fa-arrow-down
+                            {% elif t['transaction_type'] == 'Withdraw' %}fa-arrow-up
+                            {% else %}fa-right-left{% endif %}"></i>
+                    </div>
+                    <div class="t-info">
+                        <h4>{{ t['transaction_type'] }}</h4>
+                        {% if t['description'] %}
+                            <p class="t-desc">{{ t['description'] }}</p>
+                        {% else %}
+                            <p class="t-desc">Standard Transaction</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="t-right">
+                    <div class="t-amount {% if t['transaction_type'] in ['Deposit', 'Fixed Deposit'] %}amt-pos{% else %}amt-neg{% endif %}">
+                        {% if t['transaction_type'] in ['Deposit', 'Fixed Deposit'] %}+{% else %}-{% endif %}
+                        KES {{ "{:,.2f}".format(t['amount']) }}
+                    </div>
+                    <div class="t-date">{{ t['timestamp'] }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <i class="fa-solid fa-receipt"></i>
+                <p>No transactions found yet.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+</body>
+</html>

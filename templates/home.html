@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SecureBank | Digital Banking Redefined</title>
+
+<!-- Bootstrap -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- AOS (Animate on Scroll) -->
+<link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+body {
+    font-family: 'Segoe UI', sans-serif;
+    scroll-behavior: smooth;
+}
+
+/* NAVBAR */
+.navbar {
+    background: rgba(0, 51, 102, 0.95);
+    backdrop-filter: blur(10px);
+}
+
+/* HERO */
+.hero {
+    background: linear-gradient(rgba(0,51,102,0.85), rgba(0,51,102,0.85)),
+    url('https://images.unsplash.com/photo-1601597111158-2fceff292cdc') center/cover;
+    height: 100vh;
+    color: white;
+}
+.hero h1 {
+    font-size: 3.5rem;
+    font-weight: bold;
+}
+.btn-custom {
+    border-radius: 30px;
+    padding: 12px 30px;
+}
+
+/* ABOUT SECTION */
+.about-section {
+    background: linear-gradient(to right, #f8f9fa, #e3f2fd);
+}
+.about-section img {
+    border-radius: 15px;
+}
+
+/* TESTIMONIAL SECTION */
+.testimonial-section {
+    background: linear-gradient(to right, #003366, #00509e);
+    color: white;
+}
+.testimonial-card {
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 20px;
+    padding: 25px;
+    transition: 0.3s;
+}
+.testimonial-card:hover {
+    transform: translateY(-10px);
+}
+
+/* CONTACT SECTION */
+.contact-section {
+    background: linear-gradient(to right, #e3f2fd, #ffffff);
+}
+
+/* FOOTER */
+footer {
+    background: #001f3f;
+    color: white;
+}
+</style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar navbar-expand-lg navbar-dark fixed-top shadow">
+<div class="container">
+<a class="navbar-brand fw-bold" href="#">SecureBank</a>
+<button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+<span class="navbar-toggler-icon"></span>
+</button>
+
+<div class="collapse navbar-collapse" id="navbarNav">
+<ul class="navbar-nav ms-auto">
+<li class="nav-item"><a class="nav-link" href="#home">Home</a></li>
+<li class="nav-item"><a class="nav-link" href="#about">About</a></li>
+<li class="nav-item"><a class="nav-link" href="#testimonials">Testimonials</a></li>
+<li class="nav-item"><a class="nav-link" href="#contact">Contact</a></li>
+
+{% if session.get('user_id') %}
+    <li class="nav-item ms-3"><a href="{{ url_for('dashboard') }}" class="btn btn-outline-light btn-sm me-2">Dashboard</a></li>
+    <li class="nav-item ms-1"><a href="{{ url_for('profile') }}" class="btn btn-light btn-sm me-2">Profile</a></li>
+    <li class="nav-item ms-1"><a href="{{ url_for('logout') }}" class="btn btn-warning btn-sm">Logout</a></li>
+{% else %}
+    <li class="nav-item ms-3"><a href="/login" class="btn btn-light btn-sm me-2">Login</a></li>
+    <li class="nav-item ms-1"><a href="/register" class="btn btn-warning btn-sm">Register</a></li>
+{% endif %}
+
+</ul>
+</div>
+</div>
+</nav>
+
+<!-- HERO -->
+<section id="home" class="hero d-flex align-items-center">
+<div class="container text-center" data-aos="fade-up">
+<h1>Smart. Secure. Powerful Banking.</h1>
+<p class="lead mt-3 mb-4">Experience modern digital banking designed for your future.</p>
+<a href="/register" class="btn btn-warning btn-lg btn-custom me-3">Open Account</a>
+<a href="/login" class="btn btn-outline-light btn-lg btn-custom">Login</a>
+</div>
+</section>
+
+<!-- ABOUT -->
+<section id="about" class="about-section py-5">
+<div class="container">
+<h2 class="text-center fw-bold mb-5" data-aos="fade-up">About SecureBank</h2>
+
+<div class="row align-items-center">
+<div class="col-md-6" data-aos="fade-right">
+<img src="https://images.unsplash.com/photo-1553729459-efe14ef6055d" class="img-fluid shadow">
+</div>
+
+<div class="col-md-6" data-aos="fade-left">
+<h4 class="fw-bold">Innovating Digital Finance</h4>
+<p>SecureBank is built on innovation, security, and reliability. We provide seamless digital banking solutions backed by advanced encryption and modern financial infrastructure.</p>
+<p>Our mission is to empower individuals and businesses with safe, fast, and accessible banking services.</p>
+</div>
+</div>
+</div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials" class="testimonial-section py-5">
+<div class="container text-center">
+<h2 class="fw-bold mb-5" data-aos="fade-up">Trusted by Thousands</h2>
+
+<div class="row g-4">
+
+<div class="col-md-4" data-aos="zoom-in">
+<div class="testimonial-card p-4 shadow">
+<img src="https://randomuser.me/api/portraits/men/32.jpg" class="rounded-circle mb-3" width="80">
+<p>"SecureBank changed the way I manage my money."</p>
+<h6 class="fw-bold">Brian M.</h6>
+</div>
+</div>
+
+<div class="col-md-4" data-aos="zoom-in" data-aos-delay="200">
+<div class="testimonial-card p-4 shadow">
+<img src="https://randomuser.me/api/portraits/women/44.jpg" class="rounded-circle mb-3" width="80">
+<p>"Fast transfers and beautiful interface."</p>
+<h6 class="fw-bold">Cynthia K.</h6>
+</div>
+</div>
+
+<div class="col-md-4" data-aos="zoom-in" data-aos-delay="400">
+<div class="testimonial-card p-4 shadow">
+<img src="https://randomuser.me/api/portraits/men/75.jpg" class="rounded-circle mb-3" width="80">
+<p>"I trust SecureBank completely with my savings."</p>
+<h6 class="fw-bold">Daniel O.</h6>
+</div>
+</div>
+
+</div>
+</div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact" class="contact-section py-5">
+<div class="container">
+<h2 class="text-center fw-bold mb-5" data-aos="fade-up">Contact Us</h2>
+
+<div class="row align-items-center">
+<div class="col-md-6" data-aos="fade-right">
+<img src="https://images.unsplash.com/photo-1521791136064-7986c2920216" class="img-fluid shadow rounded">
+</div>
+
+<div class="col-md-6" data-aos="fade-left">
+<form>
+<div class="mb-3"><input type="text" class="form-control" placeholder="Your Name"></div>
+<div class="mb-3"><input type="email" class="form-control" placeholder="Your Email"></div>
+<div class="mb-3"><textarea class="form-control" rows="4" placeholder="Your Message"></textarea></div>
+<button class="btn btn-primary w-100">Send Message</button>
+</form>
+</div>
+</div>
+</div>
+</section>
+
+<!-- FOOTER -->
+<footer class="py-4 text-center">
+<div class="container">
+<p>&copy; 2026 SecureBank. All Rights Reserved.</p>
+</div>
+</footer>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+<script>
+AOS.init({ duration: 1000, once: true });
+</script>
+
+</body>
+</html>
