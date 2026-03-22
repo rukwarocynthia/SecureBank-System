@@ -29,13 +29,13 @@ app.secret_key = "bank_secret_key"
 serializer = URLSafeTimedSerializer(app.secret_key)
 
 if os.environ.get('RENDER'):
-    DATABASE_PATH = '/var/lib/data/bank.db'
+    DATABASE_PATH = 'bank.db'
 else:
     DATABASE_PATH = 'bank.db'
 
 # ------------------- DATABASE CONNECTION ------------------- #
 def get_db_connection():
-   
+
     conn = sqlite3.connect(DATABASE_PATH)
     conn.row_factory = sqlite3.Row
     return conn
