@@ -33,6 +33,67 @@ if os.environ.get('RENDER'):
 else:
     DATABASE_PATH = 'bank.db'
 
+# ------------------- DATABASE INITIALIZATION ------------------- #
+def create_tables():
+    conn = sqlite3.connect(DATABASE_PATH)
+    cursor = conn.cursor()
+
+    # 1. Users table 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL UNIQUE,
+            password TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            is_admin INTEGER DEFAULT 0,
+            status TEXT DEFAULT 'active'
+        )
+    ''')
+
+    # 2. Accounts table 
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Accounts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            account_type TEXT NOT NULL,
+            balance REAL DEFAULT 0.0,
+            status TEXT DEFAULT 'active',
+            maturity_date TEXT,
+            interest_rate REAL DEFAULT 0.0,
+            FOREIGN KEY (user_id) REFERENCES Users(id)
+        )
+    ''')
+
+    # 3. Transactions table (Matches your deposit/withdraw logic)
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS Transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            account_id INTEGER,
+            user_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            transaction_type TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            receiver_account TEXT,
+            reference TEXT,
+            description TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (account_id) REFERENCES Accounts(id),
+            FOREIGN KEY (user_id) REFERENCES Users(id)
+        )
+    ''')
+
+    # Seed Admin User
+    admin_pass = generate_password_hash("kca2026")
+    cursor.execute('''
+        INSERT OR IGNORE INTO Users (username, password, email, is_admin, status)
+        VALUES (?, ?, ?, ?, ?)
+    ''', ("admin_cynthia", admin_pass, "rukwarocynthia4093@gmail.com", 1, "active"))
+
+    conn.commit()
+    conn.close()
+
+create_tables()
+
 # ------------------- DATABASE CONNECTION ------------------- #
 def get_db_connection():
 
