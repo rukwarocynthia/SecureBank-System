@@ -457,50 +457,47 @@ def deposit(account_id):
         return redirect(url_for("login"))
 
     conn = get_db_connection()
-   
     conn.row_factory = sqlite3.Row 
     cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM Accounts WHERE id=? AND account_type != 'Fixed Deposit'", (account_id,))
-    account = cursor.fetchone()
-    
-    if not account:
-        conn.close()
-        flash("Use the Fixed Deposit Setup for FD accounts.", "warning")
-        return redirect(url_for("dashboard"))
+    try:
+        # Check ownership and type
+        cursor.execute("SELECT * FROM Accounts WHERE id=? AND account_type != 'Fixed Deposit'", (account_id,))
+        account = cursor.fetchone()
+        
+        if not account or account["user_id"] != session["user_id"]:
+            flash("Unauthorized access or account not found.", "danger")
+            return redirect(url_for("dashboard"))
 
-    if request.method == "POST":
-        try:
-            amount = float(request.form["amount"])
-            
-            if amount >= APPROVAL_LIMIT:
-                # 1. Create PENDING transaction (Balance is NOT updated)
-                cursor.execute("""
-                    INSERT INTO Transactions (user_id, account_id, amount, transaction_type, status) 
-                    VALUES (?, ?, ?, 'Deposit', 'pending')
-                """, (session["user_id"], account_id, amount))
-                
-                conn.commit()
-                flash(f"KES {amount:,.2f} exceeds limit. Waiting for Admin Approval.", "warning")
-            
-            else:
-                # 2. Process Small Deposit Normally
+        if request.method == "POST":
+            amount = float(request.form.get("amount", 0))
+            if amount <= 0:
+                flash("Enter a valid amount.", "warning")
+                return redirect(url_for("deposit", account_id=account_id))
+
+            # Check against the global APPROVAL_LIMIT
+            status = "pending" if amount >= APPROVAL_LIMIT else "approved"
+
+            if status == "approved":
                 cursor.execute("UPDATE Accounts SET balance = balance + ? WHERE id=?", (amount, account_id))
-                cursor.execute("""
-                    INSERT INTO Transactions (user_id, account_id, amount, transaction_type, status) 
-                    VALUES (?, ?, ?, 'Deposit', 'approved')
-                """, (session["user_id"], account_id, amount))
-                
-                conn.commit()
                 flash("Deposit successful!", "success")
-                
-        except Exception as e:
-            conn.rollback()
-            flash("An error occurred during the deposit.", "danger")
-        finally:
-            conn.close()
+            else:
+                flash(f"KES {amount:,.2f} exceeds limit. Waiting for Admin Approval.", "warning")
+
+            # Log Transaction
+            cursor.execute("""
+                INSERT INTO Transactions (user_id, account_id, amount, transaction_type, status) 
+                VALUES (?, ?, ?, 'Deposit', ?)
+            """, (session["user_id"], account_id, amount, status))
             
-        return redirect(url_for("dashboard"))
+            conn.commit()
+            return redirect(url_for("dashboard"))
+
+    except Exception as e:
+        conn.rollback()
+        flash("A system error occurred.", "danger")
+    finally:
+        conn.close() 
 
     return render_template("deposit.html", account=account)
 
@@ -512,15 +509,16 @@ def deposit_fixed(account_id):
         return redirect(url_for("login"))
 
     conn = get_db_connection()
+    conn.row_factory = sqlite3.Row # Added for dictionary-style access
     cursor = conn.cursor()
     
     try:
-
-        cursor.execute("SELECT * FROM Accounts WHERE id=? AND account_type = 'Fixed Deposit'", (account_id,))
+        # Check ownership
+        cursor.execute("SELECT * FROM Accounts WHERE id=? AND user_id=?", (account_id, session["user_id"]))
         account = cursor.fetchone()
 
         if not account:
-            flash("Fixed Deposit account not found.", "danger")
+            flash("Account not found.", "danger")
             return redirect(url_for("dashboard"))
 
         if request.method == "POST":
@@ -532,15 +530,15 @@ def deposit_fixed(account_id):
                 return redirect(url_for("deposit_fixed", account_id=account_id))
 
             amount = float(amount_str)
-
         
+            # Update specifically for the logged-in user
             cursor.execute("""
                 UPDATE Accounts 
                 SET balance = balance + ?, 
                     maturity_date = ?, 
                     status = 'active' 
-                WHERE id = ?
-            """, (amount, user_date, account_id))
+                WHERE id = ? AND user_id = ?
+            """, (amount, user_date, account_id, session["user_id"]))
 
             cursor.execute("""
                 INSERT INTO Transactions (user_id, account_id, amount, transaction_type, status, description) 
@@ -552,7 +550,6 @@ def deposit_fixed(account_id):
             return redirect(url_for("dashboard"))
 
     except Exception as e:
-        print(f"Database Error: {e}")
         conn.rollback() 
         flash("An error occurred while processing your deposit.")
         return redirect(url_for("dashboard"))
@@ -563,23 +560,23 @@ def deposit_fixed(account_id):
     return render_template("deposit_fixed.html", account=account, min_date=today)
 
 # ------------------- WITHDRAW ------------------- #
-from datetime import datetime
-
 @app.route("/withdraw/<int:account_id>", methods=["GET", "POST"])
 def withdraw(account_id):
     if "user_id" not in session:
         return redirect(url_for("login"))
 
     is_admin = session.get("is_admin") == 1
-    user_id = session.get("user_id")
+    current_user_id = session.get("user_id") # Clarified variable name
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # Fetch account details
     cursor.execute("SELECT * FROM Accounts WHERE id=?", (account_id,))
     account = cursor.fetchone()
 
-    if not account or (not is_admin and account["user_id"] != user_id):
+    # Security & Status Checks
+    if not account or (not is_admin and account["user_id"] != current_user_id):
         conn.close()
         flash("Unauthorized access or account not found.")
         return redirect(url_for("dashboard"))
@@ -589,11 +586,11 @@ def withdraw(account_id):
         flash("This account is frozen. Transactions are disabled.")
         return redirect(url_for("dashboard"))
 
+    # Fixed Deposit Maturity Check
     if account["account_type"] == "Fixed Deposit" and not is_admin:
         maturity_str = account["maturity_date"]
         if maturity_str:
             try:
-                # Compare only dates (ignoring time) for a better user experience
                 maturity_date = datetime.strptime(maturity_str, '%Y-%m-%d').date()
                 if datetime.now().date() < maturity_date:
                     conn.close()
@@ -604,35 +601,44 @@ def withdraw(account_id):
 
     if request.method == "POST":
         try:
-            amount = float(request.form["amount"])
-        except ValueError:
-            flash("Please enter a valid amount.")
+            try:
+                amount = float(request.form["amount"])
+            except ValueError:
+                flash("Please enter a valid numeric amount.")
+                return redirect(url_for("withdraw", account_id=account_id))
+
+            if amount <= 0:
+                flash("Amount must be greater than zero.")
+                return redirect(url_for("withdraw", account_id=account_id))
+
+            if amount > account["balance"]:
+                flash("Insufficient funds.")
+                return redirect(url_for("withdraw", account_id=account_id))
+
+            # --- TRANSACTION LOGIC ---
+            if is_admin or amount <= APPROVAL_LIMIT:
+                cursor.execute("UPDATE Accounts SET balance = balance - ? WHERE id=?", (amount, account_id))
+                status = "approved"
+                flash(f"Successfully withdrawn KES {amount:,.2f}", "success")
+            else:
+                status = "pending"
+                flash("Amount exceeds limit. Withdrawal pending admin approval.", "warning")
+
+            # FIX: Included user_id to resolve IntegrityError
+            cursor.execute(
+                "INSERT INTO Transactions (account_id, user_id, amount, transaction_type, status) VALUES (?, ?, ?, ?, ?)",
+                (account_id, current_user_id, amount, "Withdraw", status)
+            )
+            
+            conn.commit() # Commit all changes together
+            return redirect(url_for("dashboard"))
+
+        except Exception as e:
+            conn.rollback() # Undo changes if something fails (prevents partial updates)
+            flash(f"An error occurred: {str(e)}")
             return redirect(url_for("withdraw", account_id=account_id))
-
-        if amount <= 0:
-            flash("Amount must be greater than zero.")
-            return redirect(url_for("withdraw", account_id=account_id))
-
-        if amount > account["balance"]:
-            flash("Insufficient funds.")
-            return redirect(url_for("withdraw", account_id=account_id))
-
-        if is_admin or amount <= APPROVAL_LIMIT:
-            cursor.execute("UPDATE Accounts SET balance = balance - ? WHERE id=?", (amount, account_id))
-            status = "approved"
-            flash(f"Successfully withdrawn KES {amount:,.2f}", "success")
-        else:
-            status = "pending"
-            flash("Amount exceeds limit. Withdrawal pending admin approval.", "warning")
-
-        cursor.execute(
-            "INSERT INTO Transactions (account_id, amount, transaction_type, status) VALUES (?, ?, ?, ?)",
-            (account_id, amount, "Withdraw", status)
-        )
-        
-        conn.commit()
-        conn.close()
-        return redirect(url_for("dashboard"))
+        finally:
+            conn.close() # Always close connection, even if an exception was raised
 
     conn.close()
     return render_template("withdraw.html", account=account)
