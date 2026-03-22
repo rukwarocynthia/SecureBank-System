@@ -263,24 +263,29 @@ def forgot_password():
         conn.close()
 
         if user:
+            # 1. Generate the secure token
             token = serializer.dumps(email, salt='password-reset-salt')
             reset_link = url_for('reset_password', token=token, _external=True)
 
-            msg = Message(
-                subject="SecureBank Password Reset",
-                sender=app.config['MAIL_USERNAME'],
-                recipients=[email]
-            )
-            msg.body = f"""
-Hello,
+            # 2. CRITICAL FOR DEMO: Print link to logs so you can copy it if email fails
+            print(f"--- RESET LINK GENERATED FOR {email} ---")
+            print(f"LINK: {reset_link}")
+            print("------------------------------------------")
 
-Click the link below to reset your password:
-{reset_link}
+            # 3. Attempt to send email but catch network errors
+            try:
+                msg = Message(
+                    subject="SecureBank Password Reset",
+                    sender=app.config['MAIL_USERNAME'],
+                    recipients=[email]
+                )
+                msg.body = f"Hello,\n\nClick the link below to reset your password:\n{reset_link}\n\nThis link expires in 15 minutes."
+                mail.send(msg)
+            except Exception as e:
+                # This prevents the 500 Internal Server Error
+                print(f"EMAIL FAILED TO SEND: {e}")
 
-This link expires in 15 minutes.
-"""
-            mail.send(msg)
-
+        # Always redirect and show success to prevent user enumeration
         flash("If this email exists, a reset link has been sent.", "info")
         return redirect(url_for('login'))
 
