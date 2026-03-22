@@ -102,7 +102,6 @@ def register():
         conn.commit()
         conn.close()
 
-        # IMPORTANT: These two lines must be indented to the same level as 'conn.commit()'
         flash("Account created successfully! You can now login.", "success")
         return redirect(url_for("login"))
 
