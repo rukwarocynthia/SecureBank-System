@@ -10,7 +10,7 @@ import socket
 import smtplib
 import os
 import sqlite3
-
+from email.mime.text import MIMEText
 app = Flask(__name__)
 
 # ------------------- EMAIL CONFIGURATION ------------------- #
@@ -86,6 +86,7 @@ def create_tables():
         )
     ''')
 
+
     # Seed Admin User
     admin_pass = generate_password_hash("kca2026")
     cursor.execute('''
@@ -133,7 +134,6 @@ def generate_pdf(tx_id, sender, receiver, amount):
 def home():
     return render_template("home.html")
 
-# ------------------- REGISTER ------------------- #
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -163,14 +163,53 @@ def register():
             "INSERT INTO Users (username, email, password, status, is_admin) VALUES (?, ?, ?, ?, ?)",
             (username, email, hashed_password, 'active', 0)
         )
-        
+
         conn.commit()
         conn.close()
+
+        # ✅ SEND EMAIL HERE
+        message = f"""Dear {username},
+
+Welcome to Secure Bank! We’re glad to have you on board.
+
+Your account has been successfully created, and you can now:
+
+* View your account balance
+* Deposit and withdraw funds
+* Transfer money securely
+
+At Secure Bank, your security is our priority. Please keep your login details safe and do not share them with anyone.
+
+If you need any assistance, feel free to contact our support team.
+
+Thank you for choosing Secure Bank.
+
+Best regards,
+Secure Bank Team
+"""
+
+        try:
+            send_email(email, "Welcome to Secure Bank", message)
+        except Exception as e:
+            print("Email failed:", e)  # prevents crash if email fails
 
         flash("Account created successfully! You can now login.", "success")
         return redirect(url_for("login"))
 
     return render_template("register.html")
+
+def send_email(to_email, subject, body):
+    sender = "rukwarocynthia4093@gmail.com"
+    password = "dfhwcgntfkgpfzsa"
+
+    msg = MIMEText(body)
+    msg['Subject'] = subject
+    msg['From'] = sender
+    msg['To'] = to_email
+
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+        server.login(sender, password)
+        server.send_message(msg)
 
 # ------------------- COLLECT INTEREST ------------------- #
 @app.route("/collect_interest/<int:account_id>", methods=["POST"])
@@ -197,9 +236,18 @@ def collect_interest(account_id):
             
             # Record the transaction
             conn.execute(
-                "INSERT INTO Transactions (user_id, amount, type, status) VALUES (?, ?, ?, ?)",
-                (session['user_id'], interest, 'Interest Payout', 'completed')
+                   """INSERT INTO Transactions 
+                   (account_id, user_id, amount, transaction_type, status, description) 
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+            account_id,
+            account['user_id'],   # ✅ correct user
+            interest,
+            'Interest Payout',
+            'completed',
+            'Fixed deposit interest credited'
             )
+        ) 
             
             conn.commit()
             flash(f"Success! KES {interest:,.2f} interest added. Account is now unlocked.", "success")
@@ -999,9 +1047,21 @@ def delete_user(user_id):
         conn.close()
     return redirect(url_for("admin_dashboard"))
 
+def add_column_if_not_exists():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("PRAGMA table_info(Users)")
+    columns = [column[1] for column in cursor.fetchall()]
+
+    if "profile_pic" not in columns:
+        cursor.execute("ALTER TABLE Users ADD COLUMN profile_pic TEXT")
+
+    conn.commit()
+    conn.close()
 # ------------------- RUN APP ------------------- #
 if __name__ == "__main__":
-    # 1. Get the PORT from Render (defaults to 5000 if running locally)
-    port = int(os.environ.get("PORT", 5000))
+    add_column_if_not_exists()
 
+    port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
